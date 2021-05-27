@@ -46,14 +46,14 @@ namespace TodoListService.Controllers
         [HttpGet("{id}", Name = "Get")]
         public Todo Get(int id)
         {
-            EnsureUserHasElevatedScope(Request.Method);
+            CheckForRequiredAuthContext(Request.Method);
             return _commonDBContext.Todo.FirstOrDefault(t => t.Id == id);
         }
 
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
-            EnsureUserHasElevatedScope(Request.Method);
+            CheckForRequiredAuthContext(Request.Method);
             var todo = _commonDBContext.Todo.Find(id);
             if (todo != null)
             {
@@ -66,7 +66,7 @@ namespace TodoListService.Controllers
         [HttpPost]
         public IActionResult Post([FromBody] Todo todo)
         {
-            EnsureUserHasElevatedScope(Request.Method);
+            CheckForRequiredAuthContext(Request.Method);
             Todo todonew = new Todo() { Owner = HttpContext.User.Identity.Name, Title = todo.Title };
             _commonDBContext.Todo.Add(todonew);
             _commonDBContext.SaveChanges();
@@ -89,17 +89,17 @@ namespace TodoListService.Controllers
         }
 
         /// <summary>
-        /// Retreives the acrsValue from database for the request method.
+        /// Retrieves the acrsValue from database for the request method.
         /// Checks if the access token has acrs claim with acrsValue.
         /// If does not exists then adds WWW-Authenticate and throws UnauthorizedAccessException exception.
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        public void EnsureUserHasElevatedScope(string method)
+        public void CheckForRequiredAuthContext(string method)
         {
-            string authType = _commonDBContext.AuthContext.FirstOrDefault(x => x.Operation == method && x.TenantId == _configuration["AzureAD:TenantId"])?.AuthContextId;
+            string savedAuthContextId = _commonDBContext.AuthContext.FirstOrDefault(x => x.Operation == method && x.TenantId == _configuration["AzureAD:TenantId"])?.AuthContextId;
 
-            if (!string.IsNullOrEmpty(authType))
+            if (!string.IsNullOrEmpty(savedAuthContextId))
             {
                 HttpContext context = this.HttpContext;
 
@@ -110,14 +110,14 @@ namespace TodoListService.Controllers
                     throw new ArgumentNullException("No Usercontext is available to pick claims from");
                 }
 
-                Claim acrsClaim = context.User.FindAll(authenticationContextClassReferencesClaim).FirstOrDefault(x => x.Value == authType);
+                Claim acrsClaim = context.User.FindAll(authenticationContextClassReferencesClaim).FirstOrDefault(x => x.Value == savedAuthContextId);
 
-                if (acrsClaim == null || acrsClaim.Value != authType)
+                if (acrsClaim?.Value != savedAuthContextId)
                 {
                     if (IsClientCapableofClaimsChallenge(context))
                     {
                         string clientId = _configuration.GetSection("AzureAd").GetSection("ClientId").Value;
-                        var base64str = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"access_token\":{\"acrs\":{\"essential\":true,\"value\":\"" + authType + "\"}}}"));
+                        var base64str = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"access_token\":{\"acrs\":{\"essential\":true,\"value\":\"" + savedAuthContextId + "\"}}}"));
 
                         context.Response.Headers.Append("WWW-Authenticate", $"Bearer realm=\"\", authorization_uri=\"https://login.microsoftonline.com/common/oauth2/authorize\", client_id=\"" + clientId + "\", error=\"insufficient_claims\", claims=\"" + base64str + "\", cc_type=\"authcontext\"");
                         context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;

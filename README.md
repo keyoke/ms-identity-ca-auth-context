@@ -38,6 +38,8 @@ This code sample uses the Conditional Access Auth Context to demand a higher bar
 
 ![Overview](./ReadmeFiles/topology.png)
 
+> :information_source: Check out the recorded session on this topic: [Use Conditional Access Auth Context in your app for step-up authentication](https://www.youtube.com/watch?v=_iO7CfoktTY&ab_channel=Microsoft365Community)
+> 
 ## Prerequisites
 
 - Either [Visual Studio](https://visualstudio.microsoft.com/downloads/) or [Visual Studio Code](https://code.visualstudio.com/download) and [.NET Core SDK](https://www.microsoft.com/net/learn/get-started)
@@ -164,12 +166,6 @@ The first thing that we need to do is to declare the unique [resource](https://d
       "additionalProperties": [],
       "essential": false,
       "name": "xms_cc",
-      "source": null
-    },
-    {
-      "additionalProperties": [],
-      "essential": false,
-      "name": "acrs",
       "source": null
     }
   ],
@@ -319,9 +315,9 @@ If an operation was saved for a certain authContext and there is a CA policy con
     {
          Dictionary<string, string> dictACRValues = new Dictionary<string, string>()
             {
-                {"C1","Regular privilege" },
-                {"C2","Medium-high privilege" },
-                {"C3","High privilege" }
+                    {"C1","Require strong authentication" },
+                    {"C2","Require compliant devices" },
+                    {"C3","Require trusted locations" }
         };
 
         string sessionKey = "ACRS";
@@ -428,10 +424,10 @@ If an operation was saved for a certain authContext and there is a CA policy con
     }
     ```
 
-1. In `TodoListController.cs`, the method **EnsureUserHasElevatedScope** retrieves the acrsValue from database for the request method. Then checks if the access token has `acrs` claim with acrsValue. If does not exists then adds WWW-Authenticate and throws UnauthorizedAccessException exception.
+1. In `TodoListController.cs`, the method **CheckForRequiredAuthContext** retrieves the acrsValue from database for the request method. Then checks if the access token has `acrs` claim with acrsValue. If does not exists then adds WWW-Authenticate and throws UnauthorizedAccessException exception.
 
     ```csharp
-    public void EnsureUserHasElevatedScope(string method)
+    public void CheckForRequiredAuthContext(string method)
     {
         string authType = _commonDBContext.AuthContext.FirstOrDefault(x => x.Operation == method && x.TenantId == _configuration["AzureAD:TenantId"])?.AuthContextId;
     
@@ -523,6 +519,8 @@ public async Task<ActionResult> Create([Bind("Title,Owner")] Todo todo)
 
 ## More information
 
+- [Developers’ guide to Conditional Access authentication context](https://docs.microsoft.com/azure/active-directory/develop/developer-guide-conditional-access-authentication-context)
+- [Claims challenges, claims requests, and client capabilities](https://docs.microsoft.com/azure/active-directory/develop/claims-challenge)
 - [Microsoft identity platform (Azure Active Directory for developers)](https://docs.microsoft.com/azure/active-directory/develop/)
 - [Overview of Microsoft Authentication Library (MSAL)](https://docs.microsoft.com/azure/active-directory/develop/msal-overview)
 - [Quickstart: Register an application with the Microsoft identity platform (Preview)](https://docs.microsoft.com/azure/active-directory/develop/quickstart-register-app)
