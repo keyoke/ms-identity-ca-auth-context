@@ -32,6 +32,8 @@ namespace TodoListClient.Services
 {
     public interface ITodoListService
     {
+        Task<string> GetAccessTokenAsJSON();
+
         Task<IEnumerable<Todo>> GetAsync();
 
         Task<Todo> GetAsync(int id);

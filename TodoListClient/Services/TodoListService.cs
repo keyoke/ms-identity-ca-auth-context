@@ -6,8 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Web;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -114,11 +117,41 @@ namespace TodoListClient.Services
 
         }
 
-        private async Task PrepareAuthenticatedClient()
+        public async Task<string> GetAccessTokenAsJSON()
+        {
+           var accesstoken = await this.AcquireAccessToken();
+           string[] chunks = accesstoken.Split('.');
+
+            var base64 = chunks.ElementAtOrDefault(1).Replace('_', '/').Replace('-', '+');
+            switch (base64.Length % 4)
+            {
+                case 2:
+                    base64 += "==";
+                    break;
+                case 3:
+                    base64 += "=";
+                    break;
+            }
+            var json =  Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+
+            var t = JsonConvert.DeserializeObject(json);
+            json = JsonConvert.SerializeObject(t, Formatting.Indented);
+
+            Debug.WriteLine($"access token jwt-{json}");
+
+            return json;
+        }
+
+        private async Task<string> AcquireAccessToken()
         {
             var accessToken = await _tokenAcquisition.GetAccessTokenForUserAsync(new[] { _TodoListScope });
             Debug.WriteLine($"access token-{accessToken}");
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            return accessToken;
+        }
+
+        private async Task PrepareAuthenticatedClient()
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await AcquireAccessToken());
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
